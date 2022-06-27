@@ -18,14 +18,17 @@ def inf_norm(x):
     return torch.norm(x, p=float('inf'), dim=-1, keepdim=True)
 
 
-class SMARTLoss(nn.Module):
+class ALICELoss(nn.Module):
     
     def __init__(
         self,
         model: nn.Module,
-        loss_fn: Callable,
-        loss_last_fn: Callable = None, 
+        virtual_loss_fn: Callable,
+        virtual_loss_last_fn: Callable = None,
+        gold_loss_fn: Callable = None, 
+        gold_loss_last_fn: Callable = None,
         norm_fn: Callable = inf_norm, 
+        alpha: float = 1,
         num_steps: int = 1,
         step_size: float = 1e-3, 
         epsilon: float = 1e-6,
@@ -33,16 +36,38 @@ class SMARTLoss(nn.Module):
     ) -> None:
         super().__init__()
         self.model = model 
-        self.loss_fn = loss_fn
-        self.loss_last_fn = default(loss_last_fn, loss_fn)
+        self.virtual_loss_fn = virtual_loss_fn
+        self.virtual_loss_last_fn = default(virtual_loss_last_fn, virtual_loss_fn)
+        self.gold_loss_fn = default(gold_loss_fn, virtual_loss_fn)
+        self.gold_loss_last_fn = default(gold_loss_last_fn, virtual_loss_fn)
         self.norm_fn = norm_fn
+        self.alpha = alpha
         self.num_steps = num_steps 
         self.step_size = step_size
         self.epsilon = epsilon 
         self.noise_var = noise_var
      
+    def forward(self, embed: Tensor, state: Tensor, labels: Tensor) -> Tensor:
+        one_hot_labels = F.one_hot(labels).float()
+
+        virtual_loss = self.get_perturbed_loss(
+            embed, 
+            state, 
+            loss_fn = self.virtual_loss_fn, 
+            loss_last_fn = self.virtual_loss_last_fn
+        )
+
+        gold_loss = self.get_perturbed_loss(
+            embed, 
+            state = one_hot_labels, 
+            loss_fn = self.gold_loss_fn, 
+            loss_last_fn = self.gold_loss_last_fn
+        )
+
+        return gold_loss + self.alpha * virtual_loss
+
     @torch.enable_grad()   
-    def forward(self, embed: Tensor, state: Tensor):
+    def get_perturbed_loss(self, embed: Tensor, state: Tensor, loss_fn: Callable, loss_last_fn: Callable):
         noise = torch.randn_like(embed, requires_grad = True) * self.noise_var 
         
         # Indefinite loop with counter 
@@ -52,9 +77,9 @@ class SMARTLoss(nn.Module):
             state_perturbed = self.model(embed_perturbed) 
             # Return final loss if last step (undetached state)
             if i == self.num_steps: 
-                return self.loss_last_fn(state_perturbed, state) 
+                return loss_last_fn(state_perturbed, state) 
             # Compute perturbation loss (detached state)
-            loss = self.loss_fn(state_perturbed, state.detach())
+            loss = loss_fn(state_perturbed, state.detach())
             # Compute noise gradient ∂loss/∂noise
             noise_gradient, = torch.autograd.grad(loss, noise)
             # Move noise towards gradient to change state as much as possible 
