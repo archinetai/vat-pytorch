@@ -21,8 +21,7 @@ The first thing we have to do is extract the chunk of the model that we want to 
 import torch.nn as nn 
 from transformers import AutoModelForSequenceClassification
 
-
-class ExtractedRoberta(nn.Module):
+class ExtractedRoBERTa(nn.Module):
 
     def __init__(self):
         super().__init__()
@@ -145,7 +144,9 @@ class ALICEClassificationModel(nn.Module):
   booktitle={ACL},
   year={2020}
 }
+```
 
+```bibtex
 @article{Pereira2020AdversarialTF,
   title={Adversarial Training for Commonsense Inference},
   author={Lis Kanashiro Pereira and Xiaodong Liu and Fei Cheng and Masayuki Asahara and Ichiro Kobayashi},
@@ -153,7 +154,9 @@ class ALICEClassificationModel(nn.Module):
   year={2020},
   volume={abs/2005.08156}
 }
+```
 
+```bibtex
 @inproceedings{Pereira2021ALICEAT,
   title={ALICE++: Adversarial Training for Robust and Effective Temporal Reasoning},
   author={Lis Kanashiro Pereira and Fei Cheng and Masayuki Asahara and Ichiro Kobayashi},
