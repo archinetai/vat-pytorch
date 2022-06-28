@@ -15,7 +15,7 @@ $ pip install vat-pytorch
 ## Usage 
 
 ### Extract Model
-The first thing we have to do is extract the chunk of the model that we want to perturb adversarially. A generic example with Huggingface's RoBERTa for sequence classification is as follows: 
+The first thing we have to do is extract the chunk of the model that we want to perturb adversarially. A generic example with Huggingface's RoBERTa for sequence classification is given. 
 
 ```py 
 import torch.nn as nn 
@@ -34,6 +34,7 @@ class ExtractedRoBERTa(nn.Module):
         self.num_layers = len(self.layers)
 
     def forward(self, hidden, with_hidden_states = False):
+        """ Forwards the hidden value from self.start_layer layer to the logits. """
         hidden_states = [hidden] 
         
         for layer in self.layers[self.start_layer:]:
@@ -45,16 +46,19 @@ class ExtractedRoBERTa(nn.Module):
         return (logits, hidden_states) if with_hidden_states else logits 
 
     def get_embeddings(self, input_ids):
+        """ Computes first embedding layer given inputs_ids """ 
         return self.roberta.embeddings(input_ids)
 
     def set_attention_mask(self, attention_mask):
+        """ Sets the correct mask on all subsequent forward passes """ 
         self.attention_mask = self.roberta.get_extended_attention_mask(
             attention_mask, 
-            input_shape = input_ids.shape, 
-            device = input_ids.device
+            input_shape = attention_mask.shape, 
+            device = attention_mask.device
         ) # (b, 1, 1, s) 
 
     def set_start_layer(self, layer: int):
+        """ Sets the start layer for all subsequent forward passes """ 
         self.start_layer = layer 
 ```
 The function `set_attention_mask` is used to fix the attention mask for all subsequent forward calls, this is necessary if we want to use a mask using any VAT loss. The function `set_start_layer` is necessary only if we are using `ALICEPPLoss` since the loss function needs a way to change the start layer internally. 
@@ -72,7 +76,7 @@ from vat_pytorch import SMARTLoss, kl_loss, sym_kl_loss
 class SMARTClassificationModel(nn.Module):
     # b: batch_size, s: sequence_length, d: hidden_size , n: num_labels
 
-    def __init__(self, extracted_model, weight):
+    def __init__(self, extracted_model, weight = 1.0):
         super().__init__()
         self.model = extracted_model 
         self.weight = weight
@@ -106,7 +110,7 @@ from vat_pytorch import ALICELoss, kl_loss
 class ALICEClassificationModel(nn.Module):
     # b: batch_size, s: sequence_length, d: hidden_size , n: num_labels
 
-    def __init__(self, extracted_model, weight):
+    def __init__(self, extracted_model, weight = 1.0):
         super().__init__()
         self.model = extracted_model 
         self.weight = weight
@@ -142,7 +146,7 @@ from vat_pytorch import ALICEPPLoss, kl_loss
 class ALICEPPClassificationModel(nn.Module):
     # b: batch_size, s: sequence_length, d: hidden_size , n: num_labels
 
-    def __init__(self, extracted_model, weight):
+    def __init__(self, extracted_model, weight = 1.0):
         super().__init__()
         self.model = extracted_model 
         self.weight = weight
@@ -165,6 +169,30 @@ class ALICEPPClassificationModel(nn.Module):
         return logits, loss
 ```
 
+Note that `extracted_model` requires a function with the following signature `set_start_layer(self, layer: int)`, the interface `ALICEPPModel` (`from vat_pytorch import ALICEPPModel`) can be used instead of the `nn.Module` class on the extracted model to make sure that the method is present. 
+
+
+### Wrapped Model Usage 
+Any of the above losses can be used as follows with the extracted model. 
+```py 
+import torch 
+from transformers import AutoTokenizer 
+
+extracted_model = ExtractedRoBERTa()
+tokenizer = AutoTokenizer.from_pretrained('roberta-base')
+# Pick one: 
+model = SMARTClassificationModel(extracted_model)
+model = ALICEClassificationModel(extracted_model)
+model = ALICEPPClassificationModel(extracted_model)
+# Compute inputs 
+text = ["This text belongs to class 1...", "This text belongs to class 0..."]
+inputs = tokenizer(text, return_tensors='pt')
+labels = torch.tensor([1, 0]) 
+# Compute logits and loss 
+logits, loss = model(input_ids = inputs['input_ids'], attention_mask = inputs['attention_mask'], labels = labels)
+# To finetune do this for many steps  
+loss.backward() 
+```
 
 ## Citations
 

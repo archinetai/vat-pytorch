@@ -64,13 +64,15 @@ class ALICEPPLoss(nn.Module):
      
     def forward(self, hiddens: List[Tensor], state: Tensor, labels: Tensor) -> Tensor: 
 
-        # Random layer on which we apply the perturbation 
+        # Pick random layer on which we apply the perturbation 
         random_layer_idx = torch.randint(low = 0, high = self.num_layers, size = (1,))[0]
+
+        # Set random start layer 
+        self.model.set_start_layer(random_layer_idx)
 
         virtual_loss = self.get_perturbed_loss(
             hidden = hiddens[random_layer_idx], 
             state = state, 
-            layer_id = random_layer_idx,
             loss_fn = self.loss_fn,
             loss_last_fn = self.loss_last_fn 
         ) 
@@ -78,10 +80,12 @@ class ALICEPPLoss(nn.Module):
         label_loss = self.get_perturbed_loss(
             hidden = hiddens[random_layer_idx], 
             state = F.one_hot(labels).float(), 
-            layer_id = random_layer_idx,
             loss_fn = self.gold_loss_fn,
             loss_last_fn = self.gold_loss_last_fn 
-        )
+        ) 
+
+        # Reset to start layer 
+        self.model.set_start_layer(0)
 
         return label_loss + self.alpha * virtual_loss
 
@@ -90,7 +94,6 @@ class ALICEPPLoss(nn.Module):
         self, 
         hidden: Tensor, 
         state: Tensor, 
-        layer_id: int, 
         loss_fn: Callable, 
         loss_last_fn: Callable
     ):
@@ -100,7 +103,6 @@ class ALICEPPLoss(nn.Module):
         for i in count():
             # Compute perturbed hidden and states 
             hidden_perturbed = hidden + noise 
-            self.model.set_start_layer(layer_id)
             state_perturbed = self.model(hidden_perturbed) 
             # Return final loss if last step (undetached state)
             if i == self.num_steps: 
