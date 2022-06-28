@@ -159,7 +159,7 @@ class ALICEPPClassificationModel(nn.Module):
         return logits, loss
 ```
 
-Note that `extracted_model` requires a function with the following signature `set_start_layer(self, layer: int)`, the interface `ALICEPPModel` (`from vat_pytorch import ALICEPPModel`) can be used instead of the `nn.Module` class on the extracted model to make sure that the method is present. 
+Note that `extracted_model` requires a function with the following signature `set_start_layer(self, layer: int)`, the interface `ALICEPPModule` (`from vat_pytorch import ALICEPPModule`) can be used instead of the `nn.Module` class on the extracted model to make sure that the method is present. 
 
 
 ### Wrapped Model Usage 
