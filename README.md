@@ -15,7 +15,7 @@ $ pip install vat-pytorch
 ## Usage 
 
 ### Extract Model
-The first thing we have to do is extract the chunk of the model that we want to perturb adversarially. A generic example with Huggingface's RoBERTa for sequence classification is as follows, where we can choose the start layer: 
+The first thing we have to do is extract the chunk of the model that we want to perturb adversarially. A generic example with Huggingface's RoBERTa for sequence classification is as follows: 
 
 ```py 
 import torch.nn as nn 
@@ -30,12 +30,13 @@ class ExtractedRoBERTa(nn.Module):
         self.layers = model.roberta.encoder.layer  
         self.classifier = model.classifier 
         self.attention_mask = None 
-        self.from_layer: int = 0 
+        self.start_layer: int = 0 
+        self.num_layers = len(self.layers)
 
     def forward(self, hidden, with_hidden_states = False):
-        hidden_states = [] 
+        hidden_states = [hidden] 
         
-        for layer in self.layers[self.from_layer:]:
+        for layer in self.layers[self.start_layer:]:
             hidden = layer(hidden, attention_mask = self.attention_mask)[0]
             hidden_states += [hidden]
 
@@ -51,15 +52,17 @@ class ExtractedRoBERTa(nn.Module):
             attention_mask, 
             input_shape = input_ids.shape, 
             device = input_ids.device
-        ) # (b, 1, 1, d) 
+        ) # (b, 1, 1, s) 
 
-    def set_from_layer(self, layer: int):
-        self.from_layer = layer 
+    def set_start_layer(self, layer: int):
+        self.start_layer = layer 
 ```
+The function `set_attention_mask` is used to fix the attention mask for all subsequent forward calls, this is necessary if we want to use a mask using any VAT loss. The function `set_start_layer` is necessary only if we are using `ALICEPPLoss` since the loss function needs a way to change the start layer internally. 
+
 
 ### SMART 
 
-<a href="https://aclanthology.org/2020.acl-main.197/">Paper</a>
+The <a href="https://aclanthology.org/2020.acl-main.197/">SMART paper</a> proposes to find the noise that maximally perturbs the logits when added to the embedding layer, and to use a loss function to make sure that the perturbed logits are as close as possible to the predicted logits. 
 
 ```py
 import torch.nn as nn  
@@ -93,7 +96,7 @@ class SMARTClassificationModel(nn.Module):
 
 ### ALICE 
 
-<a href="https://arxiv.org/abs/2005.08156">Paper</a>
+The <a href="https://arxiv.org/abs/2005.08156">ALICE paper</a> is analogous to the SMART paper, but adds an additional term to make sure that the perturbed logits are as close as possible to both the predicted logits *and* the ground truth labels. 
 
 ```py
 import torch.nn as nn  
@@ -128,10 +131,36 @@ class ALICEClassificationModel(nn.Module):
 
 ### ALICE++
 
-<a href="https://aclanthology.org/2021.paclic-1.40/">Paper</a>
+The <a href="https://aclanthology.org/2021.paclic-1.40/">ALICE++ paper</a> is analogous to the ALICE paper, but instead of adding noise to the embedding layer, it picks a random layer from the network at each iteration on which to add the noise. 
+
 
 ```py 
+from vat_pytorch import ALICEPPLoss, kl_loss
 
+class ALICEPPClassificationModel(nn.Module):
+    # b: batch_size, s: sequence_length, d: hidden_size , n: num_labels
+
+    def __init__(self, extracted_model, weight):
+        super().__init__()
+        self.model = extracted_model 
+        self.weight = weight
+        self.vat_loss = ALICEPPLoss(model = extracted_model, loss_fn = kl_loss, num_layers = self.model.num_layers)
+
+    def forward(self, input_ids, attention_mask, labels):
+        """ input_ids: (b, s), attention_mask: (b, s), labels: (b,) """
+        # Get input embeddings 
+        embeddings = self.model.get_embeddings(input_ids)
+        # Set iteration specific data (e.g. attention mask) 
+        self.model.set_attention_mask(attention_mask)
+        # Compute logits 
+        logits, hidden_states = self.model(embeddings, with_hidden_states = True) 
+        # Compute CE loss  
+        ce_loss = F.cross_entropy(logits.view(-1, 2), labels.view(-1))
+        # Compute VAT loss 
+        vat_loss = self.vat_loss(hidden_states, logits, labels) 
+        # Merge losses 
+        loss = ce_loss + self.weight * vat_loss
+        return logits, loss
 ```
 
 
