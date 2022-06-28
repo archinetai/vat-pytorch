@@ -110,7 +110,7 @@ class ALICEClassificationModel(nn.Module):
         super().__init__()
         self.model = extracted_model 
         self.weight = weight
-        self.vat_loss = ALICELoss(model = extracted_model, virtual_loss_fn = kl_loss)
+        self.vat_loss = ALICELoss(model = extracted_model, loss_fn = kl_loss)
 
     def forward(self, input_ids, attention_mask, labels):
         """ input_ids: (b, s), attention_mask: (b, s), labels: (b,) """
@@ -134,7 +134,9 @@ class ALICEClassificationModel(nn.Module):
 The <a href="https://aclanthology.org/2021.paclic-1.40/">ALICE++ paper</a> is analogous to the ALICE paper, but instead of adding noise to the embedding layer, it picks a random layer from the network at each iteration on which to add the noise. 
 
 
-```py 
+```py
+import torch.nn as nn  
+import torch.nn.functional as F 
 from vat_pytorch import ALICEPPLoss, kl_loss
 
 class ALICEPPClassificationModel(nn.Module):
