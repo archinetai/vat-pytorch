@@ -124,13 +124,10 @@ class ALICEClassificationModel(nn.Module):
         self.model.set_attention_mask(attention_mask)
         # Compute logits 
         logits = self.model(embeddings)
-        # Compute CE loss  
-        ce_loss = F.cross_entropy(logits.view(-1, 2), labels.view(-1))
+        # ALICE doesn't include a CE loss
         # Compute VAT loss
         vat_loss = self.vat_loss(embeddings, logits, labels) 
-        # Merge losses 
-        loss = ce_loss + self.weight * vat_loss
-        return logits, loss
+        return logits, vat_loss
 ```
 
 ### ALICE++
@@ -160,13 +157,10 @@ class ALICEPPClassificationModel(nn.Module):
         self.model.set_attention_mask(attention_mask)
         # Compute logits 
         logits, hidden_states = self.model(embeddings, with_hidden_states = True) 
-        # Compute CE loss  
-        ce_loss = F.cross_entropy(logits.view(-1, 2), labels.view(-1))
-        # Compute VAT loss 
-        vat_loss = self.vat_loss(hidden_states, logits, labels) 
-        # Merge losses 
-        loss = ce_loss + self.weight * vat_loss
-        return logits, loss
+        # ALICE++ doesn't include a CE loss
+        # Compute VAT loss
+        vat_loss = self.vat_loss(embeddings, logits, labels) 
+        return logits, vat_loss
 ```
 
 Note that `extracted_model` requires a function with the following signature `set_start_layer(self, layer: int)`, the interface `ALICEPPModel` (`from vat_pytorch import ALICEPPModel`) can be used instead of the `nn.Module` class on the extracted model to make sure that the method is present. 
