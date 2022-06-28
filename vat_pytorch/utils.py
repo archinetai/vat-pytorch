@@ -1,4 +1,8 @@
+import torch 
 import torch.nn.functional as F
+
+def inf_norm(x):
+    return torch.norm(x, p=float('inf'), dim=-1, keepdim=True)
 
 def kl_loss(input, target, reduction='batchmean'):
     return F.kl_div(

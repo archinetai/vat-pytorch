@@ -12,7 +12,72 @@ $ pip install vat-pytorch
 [![PyPI - Python Version](https://img.shields.io/pypi/v/vat-pytorch?style=flat&colorA=0f0f0f&colorB=0f0f0f)](https://pypi.org/project/vat-pytorch/) 
 
 
-## Usage 
+## API 
+
+### SMART 
+The <a href="https://aclanthology.org/2020.acl-main.197/">SMART paper</a> proposes to find the noise that maximally perturbs the logits when added to the embedding layer, and to use a loss function to make sure that the perturbed logits are as close as possible to the predicted logits. 
+
+```py 
+from vat_pytorch import SMARTLoss, inf_norm 
+
+loss = SMARTLoss(
+    model: nn.Module,
+    loss_fn: Callable,
+    loss_last_fn: Callable = None, 
+    norm_fn: Callable = inf_norm, 
+    num_steps: int = 1,
+    step_size: float = 1e-3, 
+    epsilon: float = 1e-6,
+    noise_var: float = 1e-5
+)
+```
+
+### ALICE 
+
+The <a href="https://arxiv.org/abs/2005.08156">ALICE paper</a> is analogous to the SMART paper, but adds an additional term to make sure that the perturbed logits are as close as possible to both the predicted logits *and* the ground truth labels. 
+
+```py 
+from vat_pytorch import ALICELoss, inf_norm 
+
+loss = ALICEPPLoss(
+    model: nn.Module,
+    loss_fn: Callable,
+    loss_last_fn: Callable = None,
+    gold_loss_fn: Callable = None, 
+    gold_loss_last_fn: Callable = None,
+    norm_fn: Callable = inf_norm, 
+    alpha: float = 1,
+    num_steps: int = 1,
+    step_size: float = 1e-3, 
+    epsilon: float = 1e-6,
+    noise_var: float = 1e-5
+)
+```
+
+### ALICE++ 
+
+The <a href="https://aclanthology.org/2021.paclic-1.40/">ALICE++ paper</a> is analogous to the ALICE paper, but instead of adding noise to the embedding layer, it picks a random layer from the network at each iteration on which to add the noise. 
+
+```py 
+from vat_pytorch import ALICEPPLoss, ALICEPPModule, inf_norm 
+
+loss = ALICEPPLoss(
+    model: ALICEPPModule,
+    loss_fn: Callable,
+    num_layers: int,
+    loss_last_fn: Callable = None,
+    gold_loss_fn: Callable = None, 
+    gold_loss_last_fn: Callable = None, 
+    norm_fn: Callable = inf_norm, 
+    alpha: float = 1,
+    num_steps: int = 1,
+    step_size: float = 1e-3, 
+    epsilon: float = 1e-6,
+    noise_var: float = 1e-5
+)
+```
+
+## Usage (Classification)
 
 ### Extract Model
 The first thing we have to do is extract the chunk of the model that we want to perturb adversarially. A generic example with Huggingface's RoBERTa for sequence classification is given. 
@@ -59,9 +124,7 @@ class ExtractedRoBERTa(nn.Module):
 The function `set_attention_mask` is used to fix the attention mask for all subsequent forward calls, this is necessary if we want to use a mask using any VAT loss. The parameter `start_layer` in the forward function is necessary only if we are using `ALICEPPLoss` since the loss function needs a way to change the start layer internally. 
 
 
-### SMART 
-
-The <a href="https://aclanthology.org/2020.acl-main.197/">SMART paper</a> proposes to find the noise that maximally perturbs the logits when added to the embedding layer, and to use a loss function to make sure that the perturbed logits are as close as possible to the predicted logits. 
+### SMART
 
 ```py
 import torch.nn as nn  
@@ -93,9 +156,7 @@ class SMARTClassificationModel(nn.Module):
         return logits, loss
 ```
 
-### ALICE 
-
-The <a href="https://arxiv.org/abs/2005.08156">ALICE paper</a> is analogous to the SMART paper, but adds an additional term to make sure that the perturbed logits are as close as possible to both the predicted logits *and* the ground truth labels. 
+### ALICE
 
 ```py
 import torch.nn as nn  
@@ -124,9 +185,6 @@ class ALICEClassificationModel(nn.Module):
 ```
 
 ### ALICE++
-
-The <a href="https://aclanthology.org/2021.paclic-1.40/">ALICE++ paper</a> is analogous to the ALICE paper, but instead of adding noise to the embedding layer, it picks a random layer from the network at each iteration on which to add the noise. 
-
 
 ```py
 import torch.nn as nn  
