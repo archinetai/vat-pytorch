@@ -110,10 +110,9 @@ from vat_pytorch import ALICELoss, kl_loss
 class ALICEClassificationModel(nn.Module):
     # b: batch_size, s: sequence_length, d: hidden_size , n: num_labels
 
-    def __init__(self, extracted_model, weight = 1.0):
+    def __init__(self, extracted_model):
         super().__init__()
         self.model = extracted_model 
-        self.weight = weight
         self.vat_loss = ALICELoss(model = extracted_model, loss_fn = kl_loss)
 
     def forward(self, input_ids, attention_mask, labels):
@@ -124,10 +123,9 @@ class ALICEClassificationModel(nn.Module):
         self.model.set_attention_mask(attention_mask)
         # Compute logits 
         logits = self.model(embeddings)
-        # ALICE doesn't include a CE loss
         # Compute VAT loss
-        vat_loss = self.vat_loss(embeddings, logits, labels) 
-        return logits, vat_loss
+        loss = self.vat_loss(embeddings, logits, labels) 
+        return logits, loss
 ```
 
 ### ALICE++
@@ -143,10 +141,9 @@ from vat_pytorch import ALICEPPLoss, kl_loss
 class ALICEPPClassificationModel(nn.Module):
     # b: batch_size, s: sequence_length, d: hidden_size , n: num_labels
 
-    def __init__(self, extracted_model, weight = 1.0):
+    def __init__(self, extracted_model):
         super().__init__()
         self.model = extracted_model 
-        self.weight = weight
         self.vat_loss = ALICEPPLoss(model = extracted_model, loss_fn = kl_loss, num_layers = self.model.num_layers)
 
     def forward(self, input_ids, attention_mask, labels):
@@ -157,10 +154,9 @@ class ALICEPPClassificationModel(nn.Module):
         self.model.set_attention_mask(attention_mask)
         # Compute logits 
         logits, hidden_states = self.model(embeddings, with_hidden_states = True) 
-        # ALICE++ doesn't include a CE loss
-        # Compute VAT loss
-        vat_loss = self.vat_loss(embeddings, logits, labels) 
-        return logits, vat_loss
+        # Compute VAT loss 
+        loss = self.vat_loss(hidden_states, logits, labels) 
+        return logits, loss
 ```
 
 Note that `extracted_model` requires a function with the following signature `set_start_layer(self, layer: int)`, the interface `ALICEPPModel` (`from vat_pytorch import ALICEPPModel`) can be used instead of the `nn.Module` class on the extracted model to make sure that the method is present. 
