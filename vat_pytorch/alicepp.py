@@ -24,10 +24,7 @@ class ALICEPPModule(nn.Module):
     def __init__(self):
         super().__init__() 
 
-    def forward(self, hidden: Tensor) -> Tensor:
-        raise NotImplementedError()
-
-    def set_start_layer(self, layer: int):
+    def forward(self, hidden: Tensor, *, start_layer: int) -> Tensor:
         raise NotImplementedError()
 
 
@@ -65,27 +62,23 @@ class ALICEPPLoss(nn.Module):
     def forward(self, hiddens: List[Tensor], state: Tensor, labels: Tensor) -> Tensor: 
 
         # Pick random layer on which we apply the perturbation 
-        random_layer_idx = torch.randint(low = 0, high = self.num_layers, size = (1,))[0]
-
-        # Set random start layer 
-        self.model.set_start_layer(random_layer_idx)
+        random_layer_id = torch.randint(low = 0, high = self.num_layers, size = (1,))[0]
 
         virtual_loss = self.get_perturbed_loss(
-            hidden = hiddens[random_layer_idx], 
+            hidden = hiddens[random_layer_id], 
             state = state, 
+            layer_id = random_layer_id, 
             loss_fn = self.loss_fn,
             loss_last_fn = self.loss_last_fn 
         ) 
 
         label_loss = self.get_perturbed_loss(
-            hidden = hiddens[random_layer_idx], 
+            hidden = hiddens[random_layer_id], 
             state = F.one_hot(labels).float(), 
+            layer_id = random_layer_id, 
             loss_fn = self.gold_loss_fn,
             loss_last_fn = self.gold_loss_last_fn 
         ) 
-
-        # Reset to start layer 
-        self.model.set_start_layer(0)
 
         return label_loss + self.alpha * virtual_loss
 
@@ -94,6 +87,7 @@ class ALICEPPLoss(nn.Module):
         self, 
         hidden: Tensor, 
         state: Tensor, 
+        layer_id: int, 
         loss_fn: Callable, 
         loss_last_fn: Callable
     ):
@@ -103,7 +97,7 @@ class ALICEPPLoss(nn.Module):
         for i in count():
             # Compute perturbed hidden and states 
             hidden_perturbed = hidden + noise 
-            state_perturbed = self.model(hidden_perturbed) 
+            state_perturbed = self.model(hidden_perturbed, start_layer = layer_id) 
             # Return final loss if last step (undetached state)
             if i == self.num_steps: 
                 return loss_last_fn(state_perturbed, state) 

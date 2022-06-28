@@ -30,14 +30,13 @@ class ExtractedRoBERTa(nn.Module):
         self.layers = model.roberta.encoder.layer  
         self.classifier = model.classifier 
         self.attention_mask = None 
-        self.start_layer: int = 0 
-        self.num_layers = len(self.layers)
+        self.num_layers = len(self.layers) - 1 
 
-    def forward(self, hidden, with_hidden_states = False):
+    def forward(self, hidden, with_hidden_states = False, start_layer = 0):
         """ Forwards the hidden value from self.start_layer layer to the logits. """
         hidden_states = [hidden] 
         
-        for layer in self.layers[self.start_layer:]:
+        for layer in self.layers[start_layer:]:
             hidden = layer(hidden, attention_mask = self.attention_mask)[0]
             hidden_states += [hidden]
 
@@ -56,12 +55,8 @@ class ExtractedRoBERTa(nn.Module):
             input_shape = attention_mask.shape, 
             device = attention_mask.device
         ) # (b, 1, 1, s) 
-
-    def set_start_layer(self, layer: int):
-        """ Sets the start layer for all subsequent forward passes """ 
-        self.start_layer = layer 
 ```
-The function `set_attention_mask` is used to fix the attention mask for all subsequent forward calls, this is necessary if we want to use a mask using any VAT loss. The function `set_start_layer` is necessary only if we are using `ALICEPPLoss` since the loss function needs a way to change the start layer internally. 
+The function `set_attention_mask` is used to fix the attention mask for all subsequent forward calls, this is necessary if we want to use a mask using any VAT loss. The parameter `start_layer` in the forward function is necessary only if we are using `ALICEPPLoss` since the loss function needs a way to change the start layer internally. 
 
 
 ### SMART 
@@ -159,7 +154,7 @@ class ALICEPPClassificationModel(nn.Module):
         return logits, loss
 ```
 
-Note that `extracted_model` requires a function with the following signature `set_start_layer(self, layer: int)`, the interface `ALICEPPModule` (`from vat_pytorch import ALICEPPModule`) can be used instead of the `nn.Module` class on the extracted model to make sure that the method is present. 
+Note that `extracted_model` requires a function with the following signature `forward(self, hidden: Tensor, *, start_layer: int) -> Tensor`, the interface `ALICEPPModule` (`from vat_pytorch import ALICEPPModule`) can be used instead of the `nn.Module` class on the extracted model to make sure that the method is present. 
 
 
 ### Wrapped Model Usage 
