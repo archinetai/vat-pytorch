@@ -29,7 +29,8 @@ class SMARTLoss(nn.Module):
         num_steps: int = 1,
         step_size: float = 1e-3, 
         epsilon: float = 1e-6,
-        noise_var: float = 1e-5
+        noise_radius: float = 1,
+        noise_init_var: float = 1e-5,
     ) -> None:
         super().__init__()
         self.model = model 
@@ -39,13 +40,14 @@ class SMARTLoss(nn.Module):
         self.num_steps = num_steps 
         self.step_size = step_size
         self.epsilon = epsilon 
-        self.noise_var = noise_var
+        self.noise_radius = noise_radius
+        self.noise_init_var = noise_init_var
      
     @torch.enable_grad()   
     def forward(self, embed: Tensor, state: Tensor):
-        noise = torch.randn_like(embed, requires_grad = True) * self.noise_var 
-        
-        # Indefinite loop with counter 
+        noise = torch.randn_like(embed, requires_grad=True) * self.noise_init_var
+
+        # Indefinite loop with counter
         for i in count():
             # Compute perturbed embed and states 
             embed_perturbed = embed + noise 
@@ -61,7 +63,6 @@ class SMARTLoss(nn.Module):
             step = noise + self.step_size * noise_gradient 
             # Normalize new noise step into norm induced ball 
             step_norm = self.norm_fn(step)
-            noise = step / (step_norm + self.epsilon)
+            noise = step / (step_norm + self.epsilon) * self.noise_radius
             # Reset noise gradients for next step
             noise = noise.detach().requires_grad_()
-        

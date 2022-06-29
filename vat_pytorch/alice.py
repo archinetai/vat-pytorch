@@ -19,7 +19,7 @@ def inf_norm(x):
 
 
 class ALICELoss(nn.Module):
-    
+
     def __init__(
         self,
         model: nn.Module,
@@ -32,7 +32,8 @@ class ALICELoss(nn.Module):
         num_steps: int = 1,
         step_size: float = 1e-3, 
         epsilon: float = 1e-6,
-        noise_var: float = 1e-5
+        noise_radius: float = 1,
+        noise_init_var: float = 1e-5,
     ) -> None:
         super().__init__()
         self.model = model 
@@ -45,24 +46,22 @@ class ALICELoss(nn.Module):
         self.num_steps = num_steps 
         self.step_size = step_size
         self.epsilon = epsilon 
-        self.noise_var = noise_var
-     
-    def forward(self, embed: Tensor, state: Tensor, labels: Tensor) -> Tensor:
+        self.noise_radius = noise_radius
+        self.noise_init_var = noise_init_var
 
+    def forward(self, embed: Tensor, state: Tensor, labels: Tensor) -> Tensor:
         virtual_loss = self.get_perturbed_loss(
             embed, 
-            state, 
-            loss_fn = self.loss_fn, 
-            loss_last_fn = self.loss_last_fn
+            state,
+            loss_fn=self.loss_fn,
+            loss_last_fn=self.loss_last_fn
         )
-
         labels_loss = self.get_perturbed_loss(
-            embed, 
-            state = F.one_hot(labels).float(), 
-            loss_fn = self.gold_loss_fn, 
-            loss_last_fn = self.gold_loss_last_fn
+            embed,
+            state=F.one_hot(labels).float(),
+            loss_fn=self.gold_loss_fn,
+            loss_last_fn=self.gold_loss_last_fn
         )
-
         return labels_loss + self.alpha * virtual_loss
 
     @torch.enable_grad()   
@@ -73,7 +72,7 @@ class ALICELoss(nn.Module):
         loss_fn: Callable, 
         loss_last_fn: Callable
     ):
-        noise = torch.randn_like(embed, requires_grad = True) * self.noise_var 
+        noise = torch.randn_like(embed, requires_grad=True) * self.noise_init_var
         
         # Indefinite loop with counter 
         for i in count():
@@ -91,7 +90,6 @@ class ALICELoss(nn.Module):
             step = noise + self.step_size * noise_gradient 
             # Normalize new noise step into norm induced ball 
             step_norm = self.norm_fn(step)
-            noise = step / (step_norm + self.epsilon)
+            noise = step / (step_norm + self.epsilon) * self.noise_radius
             # Reset noise gradients for next step
             noise = noise.detach().requires_grad_()
-        

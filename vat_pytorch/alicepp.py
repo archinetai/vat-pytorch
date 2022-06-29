@@ -29,7 +29,7 @@ class ALICEPPModule(nn.Module):
 
 
 class ALICEPPLoss(nn.Module):
-    
+
     def __init__(
         self,
         model: ALICEPPModule,
@@ -43,7 +43,8 @@ class ALICEPPLoss(nn.Module):
         num_steps: int = 1,
         step_size: float = 1e-3, 
         epsilon: float = 1e-6,
-        noise_var: float = 1e-5
+        noise_init_var: float = 1e-5,
+        noise_radius: float = 1,
     ) -> None:
         super().__init__()
         self.model = model 
@@ -56,12 +57,12 @@ class ALICEPPLoss(nn.Module):
         self.alpha = alpha
         self.num_steps = num_steps 
         self.step_size = step_size
-        self.epsilon = epsilon 
-        self.noise_var = noise_var
+        self.epsilon = epsilon
+        self.noise_init_var = noise_init_var
+        self.noise_radius = noise_radius
      
     def forward(self, hiddens: List[Tensor], state: Tensor, labels: Tensor) -> Tensor: 
-
-        # Pick random layer on which we apply the perturbation 
+        # Pick random layer on which we apply the perturbation
         random_layer_id = torch.randint(low = 0, high = self.num_layers, size = (1,))[0]
 
         virtual_loss = self.get_perturbed_loss(
@@ -91,13 +92,13 @@ class ALICEPPLoss(nn.Module):
         loss_fn: Callable, 
         loss_last_fn: Callable
     ):
-        noise = torch.randn_like(hidden, requires_grad = True) * self.noise_var 
+        noise = torch.randn_like(hidden, requires_grad=True) * self.noise_init_var
         
         # Indefinite loop with counter 
         for i in count():
             # Compute perturbed hidden and states 
             hidden_perturbed = hidden + noise 
-            state_perturbed = self.model(hidden_perturbed, start_layer = layer_id) 
+            state_perturbed = self.model(hidden_perturbed, start_layer=layer_id)
             # Return final loss if last step (undetached state)
             if i == self.num_steps: 
                 return loss_last_fn(state_perturbed, state) 
@@ -109,7 +110,6 @@ class ALICEPPLoss(nn.Module):
             step = noise + self.step_size * noise_gradient 
             # Normalize new noise step into norm induced ball 
             step_norm = self.norm_fn(step)
-            noise = step / (step_norm + self.epsilon)
+            noise = step / (step_norm + self.epsilon) * self.noise_radius
             # Reset noise gradients for next step
             noise = noise.detach().requires_grad_()
-        
