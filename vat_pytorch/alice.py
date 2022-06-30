@@ -24,6 +24,7 @@ class ALICELoss(nn.Module):
         self,
         model: nn.Module,
         loss_fn: Callable,
+        num_classes: int,
         loss_last_fn: Callable = None,
         gold_loss_fn: Callable = None, 
         gold_loss_last_fn: Callable = None,
@@ -35,7 +36,8 @@ class ALICELoss(nn.Module):
         noise_var: float = 1e-5
     ) -> None:
         super().__init__()
-        self.model = model 
+        self.model = model
+        self.num_classes = num_classes
         self.loss_fn = loss_fn
         self.loss_last_fn = default(loss_last_fn, loss_fn)
         self.gold_loss_fn = default(gold_loss_fn, loss_fn)
@@ -57,10 +59,10 @@ class ALICELoss(nn.Module):
         )
 
         labels_loss = self.get_perturbed_loss(
-            embed, 
-            state = F.one_hot(labels).float(), 
-            loss_fn = self.gold_loss_fn, 
-            loss_last_fn = self.gold_loss_last_fn
+            embed,
+            state=F.one_hot(labels, num_classes=self.num_classes).float(),
+            loss_fn=self.gold_loss_fn,
+            loss_last_fn=self.gold_loss_last_fn
         )
 
         return labels_loss + self.alpha * virtual_loss
@@ -94,4 +96,3 @@ class ALICELoss(nn.Module):
             noise = step / (step_norm + self.epsilon)
             # Reset noise gradients for next step
             noise = noise.detach().requires_grad_()
-        

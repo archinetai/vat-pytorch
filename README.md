@@ -42,6 +42,7 @@ from vat_pytorch import ALICELoss, inf_norm
 loss = ALICEPPLoss(
     model: nn.Module,
     loss_fn: Callable,
+    num_classes: int, 
     loss_last_fn: Callable = None,
     gold_loss_fn: Callable = None, 
     gold_loss_last_fn: Callable = None,
@@ -64,6 +65,7 @@ from vat_pytorch import ALICEPPLoss, ALICEPPModule, inf_norm
 loss = ALICEPPLoss(
     model: ALICEPPModule,
     loss_fn: Callable,
+    num_classes: int, 
     num_layers: int,
     loss_last_fn: Callable = None,
     gold_loss_fn: Callable = None, 
@@ -169,7 +171,7 @@ class ALICEClassificationModel(nn.Module):
     def __init__(self, extracted_model):
         super().__init__()
         self.model = extracted_model 
-        self.vat_loss = ALICELoss(model = extracted_model, loss_fn = kl_loss)
+        self.vat_loss = ALICELoss(model = extracted_model, loss_fn = kl_loss, num_classes = 2)
 
     def forward(self, input_ids, attention_mask, labels):
         """ input_ids: (b, s), attention_mask: (b, s), labels: (b,) """
@@ -197,8 +199,13 @@ class ALICEPPClassificationModel(nn.Module):
     def __init__(self, extracted_model):
         super().__init__()
         self.model = extracted_model 
-        self.vat_loss = ALICEPPLoss(model = extracted_model, loss_fn = kl_loss, num_layers = self.model.num_layers)
-
+        self.vat_loss = ALICEPPLoss(
+            model = extracted_model, 
+            loss_fn = kl_loss,
+            num_layers = self.model.num_layers,
+            num_classes = 2 
+        )
+        
     def forward(self, input_ids, attention_mask, labels):
         """ input_ids: (b, s), attention_mask: (b, s), labels: (b,) """
         # Get input embeddings 
