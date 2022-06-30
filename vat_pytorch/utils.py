@@ -11,7 +11,7 @@ def kl_loss(input, target, reduction='batchmean'):
         reduction=reduction,
     )
 
-def sym_kl_loss(input, target, reduction='sum', alpha=1.0):
+def sym_kl_loss(input, target, reduction='batchmean', alpha=1.0):
     return alpha * F.kl_div(
         F.log_softmax(input, dim=-1),
         F.softmax(target.detach(), dim=-1),
@@ -22,7 +22,7 @@ def sym_kl_loss(input, target, reduction='sum', alpha=1.0):
         reduction=reduction,
     )
 
-def js_loss(input, target, reduction='sum', alpha=1.0):
+def js_loss(input, target, reduction='batchmean', alpha=1.0):
     mean_proba = 0.5 * (F.softmax(input.detach(), dim=-1) + F.softmax(target.detach(), dim=-1))
     return alpha * (F.kl_div(
         F.log_softmax(input, dim=-1), 
