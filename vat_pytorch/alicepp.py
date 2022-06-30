@@ -16,7 +16,7 @@ def default(val, d):
 
 def inf_norm(x):
     return torch.norm(x, p=float('inf'), dim=-1, keepdim=True)
-    
+
 
 class ALICEPPModule(nn.Module):
     """ Interface for the model provided to ALICEPPLoss """
@@ -34,8 +34,8 @@ class ALICEPPLoss(nn.Module):
         self,
         model: ALICEPPModule,
         loss_fn: Callable,
-        num_classes: int,
         num_layers: int,
+        num_classes: int,
         loss_last_fn: Callable = None,
         gold_loss_fn: Callable = None, 
         gold_loss_last_fn: Callable = None, 
