@@ -4,7 +4,7 @@ import torch.nn.functional as F
 def inf_norm(x):
     return torch.norm(x, p=float('inf'), dim=-1, keepdim=True)
 
-def kl_loss(input, target, reduction='batchmean'):
+def kl_loss(input, target, reduction='sum'):
     return F.kl_div(
         F.log_softmax(input, dim=-1),
         F.softmax(target, dim=-1),
