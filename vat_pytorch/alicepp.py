@@ -39,9 +39,10 @@ class ALICEPPLoss(nn.Module):
     ) -> None:
         super().__init__()
         self.model = model 
-        self.num_layers = num_layers
         self.num_classes = num_classes
         self.loss_fn = loss_fn
+        self.num_layers = num_layers
+        self.max_layer = default(max_layer, num_layers)
         self.loss_last_fn = default(loss_last_fn, loss_fn) 
         self.gold_loss_fn = default(gold_loss_fn, loss_fn)
         self.gold_loss_last_fn = default(default(gold_loss_last_fn, self.gold_loss_fn), self.loss_last_fn)
@@ -51,10 +52,6 @@ class ALICEPPLoss(nn.Module):
         self.step_size = step_size
         self.epsilon = epsilon 
         self.noise_var = noise_var
-        if max_layer == None:
-            self.max_layer = num_layers
-        else:
-            self.max_layer = max_layer
      
     def forward(self, hiddens: List[Tensor], state: Tensor, labels: Tensor) -> Tensor: 
 
