@@ -5,17 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 from itertools import count 
-
-def exists(val):
-    return val is not None
-
-def default(val, d):
-    if exists(val):
-        return val
-    return d
-
-def inf_norm(x):
-    return torch.norm(x, p=float('inf'), dim=-1, keepdim=True)
+from utils import default, inf_norm
 
 
 class ALICELoss(nn.Module):
