@@ -33,9 +33,10 @@ class ALICEPPLoss(nn.Module):
     def __init__(
         self,
         model: ALICEPPModule,
+        num_classes: int,
         loss_fn: Callable,
         num_layers: int,
-        num_classes: int,
+        max_layer: int = None,
         loss_last_fn: Callable = None,
         gold_loss_fn: Callable = None, 
         gold_loss_last_fn: Callable = None, 
@@ -44,7 +45,7 @@ class ALICEPPLoss(nn.Module):
         num_steps: int = 1,
         step_size: float = 1e-3, 
         epsilon: float = 1e-6,
-        noise_var: float = 1e-5
+        noise_var: float = 1e-5,
     ) -> None:
         super().__init__()
         self.model = model 
@@ -60,11 +61,15 @@ class ALICEPPLoss(nn.Module):
         self.step_size = step_size
         self.epsilon = epsilon 
         self.noise_var = noise_var
+        if max_layer == None:
+            self.max_layer = num_layers
+        else:
+            self.max_layer = max_layer
      
     def forward(self, hiddens: List[Tensor], state: Tensor, labels: Tensor) -> Tensor: 
 
         # Pick random layer on which we apply the perturbation 
-        random_layer_id = torch.randint(low = 0, high = self.num_layers, size = (1,))[0]
+        random_layer_id = torch.randint(low = 0, high = self.max_layer, size = (1,))[0]
 
         virtual_loss = self.get_perturbed_loss(
             hidden = hiddens[random_layer_id], 
