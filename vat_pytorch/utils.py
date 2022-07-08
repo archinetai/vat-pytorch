@@ -33,3 +33,11 @@ def js_loss(input, target, reduction='batchmean', alpha=1.0):
         mean_proba, 
         reduction=reduction
     ))
+
+def exists(value):
+    return value is not None
+
+def default(value, default):
+    if exists(value):
+        return value
+    return default
