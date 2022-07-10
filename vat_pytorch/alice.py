@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 from itertools import count 
-from utils import default, inf_norm
+from .utils import default, inf_norm
 
 
 class ALICELoss(nn.Module):
