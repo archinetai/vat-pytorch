@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name="vat-pytorch",
     packages=find_packages(exclude=[]),
-    version="0.0.5",
+    version="0.0.6",
     license="MIT",
     description="Virtual Adversarial Training - Pytorch",
     long_description_content_type="text/markdown",
