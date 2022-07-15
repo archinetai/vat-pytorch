@@ -1,5 +1,4 @@
-
-# VAT - PyTorch
+<img src="./LOGO.png"></img>
 
 A collection of VAT (Virtual Adversarial Training) methods, in PyTorch.
 
@@ -42,16 +41,16 @@ from vat_pytorch import ALICELoss, inf_norm
 loss = ALICEPPLoss(
     model: nn.Module,
     loss_fn: Callable,
-    num_classes: int, 
+    num_classes: int,
     loss_last_fn: Callable = None,
-    gold_loss_fn: Callable = None, 
+    gold_loss_fn: Callable = None,
     gold_loss_last_fn: Callable = None,
-    norm_fn: Callable = inf_norm, 
+    norm_fn: Callable = inf_norm,
     alpha: float = 1,
     num_steps: int = 1,
-    step_size: float = 1e-3, 
+    step_size: float = 1e-3,
     epsilon: float = 1e-6,
-    noise_var: float = 1e-5
+    noise_var: float = 1e-5,
 )
 ```
 
@@ -64,9 +63,10 @@ from vat_pytorch import ALICEPPLoss, ALICEPPModule, inf_norm
 
 loss = ALICEPPLoss(
     model: ALICEPPModule,
+    num_classes: int,
     loss_fn: Callable,
-    num_classes: int, 
     num_layers: int,
+    max_layer: int = None,
     loss_last_fn: Callable = None,
     gold_loss_fn: Callable = None, 
     gold_loss_last_fn: Callable = None, 
@@ -75,7 +75,7 @@ loss = ALICEPPLoss(
     num_steps: int = 1,
     step_size: float = 1e-3, 
     epsilon: float = 1e-6,
-    noise_var: float = 1e-5
+    noise_var: float = 1e-5,
 )
 ```
 
